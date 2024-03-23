@@ -33,6 +33,7 @@ extern "C" {
     pub fn mlx_loop(mlx: *mut MlxT) -> c_void;
     pub fn mlx_terminate(mlx: *mut MlxT) -> c_void;
     pub fn mlx_new_image(mlx: *mut MlxT, width: i32, height: i32) -> *mut MlxImageT;
-    pub fn mlx_put_pixel(mlx: *mut MlxImageT, x: i32, y: i32, color: i32);
+    pub fn mlx_put_pixel(image: *mut MlxImageT, x: i32, y: i32, color: u32);
+    pub fn mlx_image_to_window(mlx: *mut MlxT, image: *mut MlxImageT, x: i32, y: i32);
 }
 
