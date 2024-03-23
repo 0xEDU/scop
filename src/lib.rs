@@ -17,16 +17,6 @@ pub struct MlxInstanceT {
     enabled: bool,
 }
 
-// typedef struct mlx_image
-// {
-// 	const uint32_t	width;
-// 	const uint32_t	height;
-// 	uint8_t*		pixels;
-// 	mlx_instance_t*	instances;
-// 	size_t			count;
-// 	bool			enabled;
-// 	void*			context;
-// }	mlx_image_t;
 #[repr(C)]
 pub struct MlxImageT {
     width: i32,
@@ -43,5 +33,6 @@ extern "C" {
     pub fn mlx_loop(mlx: *mut MlxT) -> c_void;
     pub fn mlx_terminate(mlx: *mut MlxT) -> c_void;
     pub fn mlx_new_image(mlx: *mut MlxT, width: i32, height: i32) -> *mut MlxImageT;
+    pub fn mlx_put_pixel(mlx: *mut MlxImageT, x: i32, y: i32, color: i32);
 }
 
