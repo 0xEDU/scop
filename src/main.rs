@@ -2,10 +2,16 @@ extern crate glfw;
 extern crate image;
 
 mod shader;
+mod tuple;
+mod matrices;
 
+// use cgmath::{vec3, Matrix, Matrix4, Rad, SquareMatrix};
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
 use glfw::{Action, Context, GlfwReceiver, Key, WindowEvent};
+use matrices::Matrix;
 use shader::Shader;
+use tuple::vector;
+use c_str_macro::c_str;
 use std::mem;
 use std::path::Path;
 use std::{ffi::c_void, ptr};
@@ -225,11 +231,30 @@ fn main() {
             gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
+            // create transformations
+            let mut transform = Matrix::identity();
+            transform = transform * Matrix::from_translation(vector(0.5, -0.5, 0.0));
+            transform = Matrix::from_angle_z(glfw.get_time() as f32) * transform;
+            // for i in 0..4 {
+            //     for j in 0..4 {
+            //         print!("{} ", transform.data[i][j]);
+            //     }
+            //     println!();
+            // }
+            // let mut transform: Matrix4<f32> = Matrix4::identity();
+            // transform = transform * Matrix4::<f32>::from_translation(vec3(0.5, -0.5, 0.0));
+            // transform = transform * Matrix4::<f32>::from_angle_z(Rad(glfw.get_time() as f32));
+            // for i in 0..4 {
+            //     for j in 0..4 {
+            //         print!("{} ", transform[i][j]);
+            //     }
+            //     println!();
+            // }
             shader.use_program();
+            let transform_loc = gl::GetUniformLocation(shader.id, c_str!("transform").as_ptr());
+            gl::UniformMatrix4fv(transform_loc, 1, gl::FALSE, transform.as_ptr());
+
             gl::BindVertexArray(vaos[0]);
-            // gl::DrawArrays(gl::TRIANGLES, 0, 3);
-            // gl::BindVertexArray(vaos[1]);
-            // gl::DrawArrays(gl::TRIANGLES, 0, 3);
             gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
         }
         window.swap_buffers();

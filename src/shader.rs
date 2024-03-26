@@ -3,7 +3,7 @@ use std::{ffi::CString, fs::File, io::Read, ptr, str};
 use gl::types::{GLchar, GLint};
 
 pub struct Shader {
-    id: u32,
+    pub id: u32,
 }
 
 impl Shader {
