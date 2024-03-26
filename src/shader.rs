@@ -97,19 +97,19 @@ impl Shader {
         }
     }
 
-    fn set_bool(&mut self, name: &mut str, value: bool) {
+    pub fn set_bool(&mut self, name: &mut str, value: bool) {
         unsafe {
             gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value as i32);
         }
     }
 
-    fn set_int(&mut self, name: &mut str, value: i32) {
+    pub fn set_int(&mut self, name: &mut str, value: i32) {
         unsafe {
             gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
         }
     }
 
-    fn set_float(&mut self, name: &mut str, value: f32) {
+    pub fn set_float(&mut self, name: &mut str, value: f32) {
         unsafe {
             gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
         }
