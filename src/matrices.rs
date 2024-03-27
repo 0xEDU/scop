@@ -51,6 +51,15 @@ impl Matrix {
         m
     }
 
+    pub fn from_angle_x(angle: f32) -> Self {
+        let mut m = Matrix::identity();
+        m.data[1][1] = angle.cos();
+        m.data[1][2] = -angle.sin();
+        m.data[2][1] = angle.sin();
+        m.data[2][2] = angle.cos();
+        m
+    }
+
     pub fn matrix3() -> Self {
         let mut m = Matrix::new();
         m.size = 3;
@@ -190,5 +199,19 @@ impl ops::Mul<Tuple> for Matrix {
         product.w = self.data[3][0] * rhs.x + self.data[3][1] * rhs.y + self.data[3][2] * rhs.z + self.data[3][3] * rhs.w;
         product
     }
+}
+/* ========================================================================== */
+
+/* Useful operations ======================================================== */
+pub fn perspective(fov: f32, aspect_ratio: f32, near: f32, far: f32) -> Matrix {
+    let half_f = fov / 2.;
+    let f = half_f.cos() / half_f.sin();
+    let mut m = Matrix::new();
+    m.data[0][0] = f / aspect_ratio;
+    m.data[1][1] = f;
+    m.data[2][2] = (far + near) / (near - far);
+    m.data[2][3] = (2. * far * near) / (near - far);
+    m.data[3][2] = -1.;
+    m
 }
 /* ========================================================================== */
