@@ -1,4 +1,4 @@
-use crate::matrices::Matrix;
+use crate::{matrices::Matrix, tuple::Tuple};
 use gl::types::{GLchar, GLint};
 use std::{
     ffi::{CStr, CString},
@@ -110,20 +110,17 @@ impl Shader {
     //     }
     // }
 
-    pub fn set_int(&mut self, name: &mut str, value: i32) {
+    pub fn set_int(&self, name: &CStr, value: i32) {
         unsafe {
-            gl::Uniform1i(
-                gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8),
-                value,
-            );
+            gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_ptr()), value);
         }
     }
 
-    // pub fn set_float(&mut self, name: &mut str, value: f32) {
-    //     unsafe {
-    //         gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
-    //     }
-    // }
+    pub fn set_float(&self, name: &CStr, value: f32) {
+        unsafe {
+            gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_ptr()), value);
+        }
+    }
 
     pub fn set_matrix(&self, name: &CStr, m: &Matrix) {
         unsafe {
@@ -132,6 +129,23 @@ impl Shader {
                 1,
                 gl::FALSE,
                 m.as_ptr(),
+            );
+        }
+    }
+
+    pub fn set_vector(&self, name: &CStr, x: f32, y: f32, z: f32) {
+        unsafe {
+            gl::Uniform3f(gl::GetUniformLocation(self.id, name.as_ptr()), x, y, z);
+        }
+    }
+
+    pub fn set_tuple(&self, name: &CStr, t: Tuple) {
+        unsafe {
+            gl::Uniform3f(
+                gl::GetUniformLocation(self.id, name.as_ptr()),
+                t.x,
+                t.y,
+                t.z,
             );
         }
     }

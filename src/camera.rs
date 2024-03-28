@@ -3,11 +3,11 @@ use crate::{matrices::Matrix, tuple::vector};
 
 pub struct Camera {
     pub fov: f32,
-    camera_position: Tuple,
+    pub camera_position: Tuple,
     camera_front: Tuple,
     camera_up: Tuple,
     sensivity: f32,
-    camera_speed: f32,
+    pub camera_speed: f32,
     delta_time: f32,
     last_frame: f32,
     last_x: f32,

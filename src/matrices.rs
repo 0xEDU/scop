@@ -49,6 +49,15 @@ impl Matrix {
         m
     }
 
+    pub fn from_scale(scale: f32) -> Self {
+        let mut m = Matrix::identity();
+        m.data[0][0] = scale;
+        m.data[1][1] = scale;
+        m.data[2][2] = scale;
+        m
+    }
+
+
     // pub fn from_angle_z(angle: f32) -> Self {
     //     let mut m = Matrix::identity();
     //     m.data[0][0] = angle.cos();
