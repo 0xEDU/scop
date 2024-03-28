@@ -4,22 +4,21 @@ extern crate image;
 mod shader;
 mod tuple;
 mod matrices;
+mod camera;
 
-use cgmath::Deg;
-// use cgmath::{vec3, Matrix, Matrix4, Rad, SquareMatrix};
+use camera::Camera;
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
 use glfw::{Action, Context, GlfwReceiver, Key, WindowEvent};
 use matrices::{perspective, Matrix};
 use shader::Shader;
-use tuple::vector;
+use tuple::{normalize, vector};
 use c_str_macro::c_str;
-use std::f32::consts::PI;
 use std::mem;
 use std::path::Path;
 use std::{ffi::c_void, ptr};
 
-const WINDOW_WIDTH: u32 = 800;
-const WINDOW_HEIGHT: u32 = 600;
+const WINDOW_WIDTH: u32 = 1920;
+const WINDOW_HEIGHT: u32 = 1080;
 
 fn main() {
     // Init OpenGL
@@ -42,6 +41,9 @@ fn main() {
         )
         .expect("Failed to create GLFW window.");
     window.set_key_polling(true);
+    window.set_cursor_pos_polling(true);
+    window.set_cursor_mode(glfw::CursorMode::Disabled);
+    window.set_scroll_polling(true);
     window.set_framebuffer_size_polling(true);
     window.set_framebuffer_size_callback(|_, width, height| unsafe {
         gl::Viewport(0, 0, width, height)
@@ -50,64 +52,102 @@ fn main() {
 
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
-    let vertices1: [f32; 32] = [
-        0.5, 0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0,
-        0.5, -0.5, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0,
-        -0.5, -0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-        -0.5, 0.5, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0,
+    let vertices: [f32; 180] = [
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+        0.5, -0.5, -0.5,  1.0, 0.0,
+        0.5,  0.5, -0.5,  1.0, 1.0,
+        0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        0.5, -0.5,  0.5,  1.0, 0.0,
+        0.5,  0.5,  0.5,  1.0, 1.0,
+        0.5,  0.5,  0.5,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+
+        0.5,  0.5,  0.5,  1.0, 0.0,
+        0.5,  0.5, -0.5,  1.0, 1.0,
+        0.5, -0.5, -0.5,  0.0, 1.0,
+        0.5, -0.5, -0.5,  0.0, 1.0,
+        0.5, -0.5,  0.5,  0.0, 0.0,
+        0.5,  0.5,  0.5,  1.0, 0.0,
+
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        0.5, -0.5, -0.5,  1.0, 1.0,
+        0.5, -0.5,  0.5,  1.0, 0.0,
+        0.5, -0.5,  0.5,  1.0, 0.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+        0.5,  0.5, -0.5,  1.0, 1.0,
+        0.5,  0.5,  0.5,  1.0, 0.0,
+        0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0
     ];
-    // let vertices2: [f32; 18] = [
-    //     -0.14, 0.24, 0.0, 0.0, 0.0, 1.0,
-    //     0.14, 0.24, 0.0, 0.0, 1.0, 0.0,
-    //     0.0, 0.14, 0.0, 1.0, 0.0, 0.0,
-    // ];
-    let indices = [0, 1, 3, 1, 2, 3];
+
+    let cube_positions = [
+        vector(0.0, 0.0, 0.0),
+        vector(2.0, 5.0, -15.0),
+        vector(-1.5, -2.2, -2.5),
+        vector(-3.8, -2.0, -12.3),
+        vector(2.4, -0.4, -3.5),
+        vector(-1.7, 3.0, -7.5),
+        vector(1.3, -2.0, -2.5),
+        vector(1.5, 2.0, -2.5),
+        vector(1.5, 0.2, -1.5),
+        vector(-1.3, 1.0, -1.5),
+    ];
+
 
     // We need to write manually at least 2 shaders: vertex shader and fragment shader
     let mut shader = Shader::new(
         "./src/shaders/vertex.shader",
         "./src/shaders/fragment.shader",
     );
-    let (mut vbos, mut vaos, texture1, texture2) = unsafe {
-        // Load vertex data
-        let (mut vbos, mut vaos, mut ebo) = ([0, 0], [0, 0], 0);
-        gl::GenVertexArrays(2, vaos.as_mut_ptr());
-        gl::GenBuffers(2, vbos.as_mut_ptr());
-        gl::GenBuffers(1, &mut ebo);
+    let mut cam = Camera::new(WINDOW_WIDTH, WINDOW_HEIGHT);
+    let (vbo, vao, texture1, texture2) = unsafe {
+        gl::Enable(gl::DEPTH_TEST);
 
-        gl::BindVertexArray(vaos[0]);
-        gl::BindBuffer(gl::ARRAY_BUFFER, vbos[0]);
+        // Load vertex data
+        let (mut vbo, mut vao) = (0, 0);
+        gl::GenVertexArrays(1, &mut vao);
+        gl::GenBuffers(1, &mut vbo);
+
+        gl::BindVertexArray(vao);
+
+        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            (vertices1.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-            &vertices1[0] as *const f32 as *const std::os::raw::c_void,
+            (vertices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
+            &vertices[0] as *const f32 as *const std::os::raw::c_void,
             gl::STATIC_DRAW,
         );
 
-        let stride = 8 * mem::size_of::<GLfloat>() as GLsizei;
-
+        let stride = 5 * mem::size_of::<GLfloat>() as GLsizei;
+        // position attrib
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, stride, ptr::null());
         gl::EnableVertexAttribArray(0);
-
+        // texture attrib
         gl::VertexAttribPointer(
             1,
-            3,
+            2,
             gl::FLOAT,
             gl::FALSE,
             stride,
             (3 * mem::size_of::<GLfloat>()) as *const c_void,
         );
         gl::EnableVertexAttribArray(1);
-
-        gl::VertexAttribPointer(
-            2,
-            2,
-            gl::FLOAT,
-            gl::FALSE,
-            stride,
-            (6 * mem::size_of::<GLfloat>()) as *const c_void,
-        );
-        gl::EnableVertexAttribArray(2);
 
         let (mut texture1, mut texture2) = (0, 0);
 
@@ -116,8 +156,8 @@ fn main() {
         gl::BindTexture(gl::TEXTURE_2D, texture1);
 
         // texture wrapping
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as i32);
-        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+        gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
 
         // texture filtering
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
@@ -137,6 +177,7 @@ fn main() {
             gl::UNSIGNED_BYTE,
             &data[0] as *const u8 as *const c_void,
         );
+        gl::GenerateMipmap(gl::TEXTURE_2D);
 
         // Generate texture 2
         gl::GenTextures(1, &mut texture2);
@@ -167,106 +208,65 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
 
-        // gl::BindVertexArray(vaos[1]);
-        // gl::BindBuffer(gl::ARRAY_BUFFER, vbos[1]);
-        // gl::BufferData(
-        //     gl::ARRAY_BUFFER,
-        //     (vertices2.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-        //     &vertices2[0] as *const f32 as *const std::os::raw::c_void,
-        //     gl::STATIC_DRAW,
-        // );
-        // gl::VertexAttribPointer(
-        //     0,
-        //     3,
-        //     gl::FLOAT,
-        //     gl::FALSE,
-        //     6 * mem::size_of::<GLfloat>() as GLsizei,
-        //     ptr::null(),
-        // );
-        // gl::EnableVertexAttribArray(0);
-        // gl::VertexAttribPointer(
-        //     1,
-        //     3,
-        //     gl::FLOAT,
-        //     gl::FALSE,
-        //     6 * mem::size_of::<GLfloat>() as GLsizei,
-        //     (3 * mem::size_of::<GLfloat>()) as *const c_void,
-        // );
-        // gl::EnableVertexAttribArray(1);
-        // gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 0, ptr::null());
-        // gl::EnableVertexAttribArray(0);
-
-        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-        gl::BufferData(
-            gl::ELEMENT_ARRAY_BUFFER,
-            (indices.len() * std::mem::size_of::<GLfloat>()) as GLsizeiptr,
-            &indices[0] as *const i32 as *const std::os::raw::c_void,
-            gl::STATIC_DRAW,
-        );
-        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-        gl::BindVertexArray(0);
-
         // Draw wireframe polygons
         // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
+
         shader.use_program();
         shader.set_int(&mut String::from("texture1"), 0);
         shader.set_int(&mut String::from("texture2"), 1);
 
-        (vbos, vaos, texture1, texture2)
+        (vbo, vao, texture1, texture2)
     };
 
     while !window.should_close() {
-        handle_window_events(&mut window, &events);
+        cam.update_delta_time(glfw.get_time() as f32);
         unsafe {
-            gl::ClearColor(0.2 as f32, 0.3 as f32, 0.3 as f32, 1.0 as f32);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
-
-            // draw triangle, finally
-            // shader.set_float(String::from("xOffset").as_mut_str(), 1.0);
-            // let time_value = glfw.get_time() as f32;
-            // let green_value = time_value.sin() / 2.0 + 0.5;
-            // let our_color = CString::new("ourColor").unwrap();
-            // let vertex_color_location = gl::GetUniformLocation(shader_program, our_color.as_ptr());
-            // gl::Uniform4f(vertex_color_location, 0.0, green_value, 0.0, 1.0);
+            gl::ClearColor(0.59 as f32, 0.48 as f32, 0.71 as f32, 1.0 as f32);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
             // bind texture on corresponding units
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture1);
-            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, texture1); gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
-            // create transformations
-            // let mut transform = Matrix::identity();
-            // transform = transform * Matrix::from_translation(vector(0.0, 0.0, 0.0));
-            // transform = Matrix::from_angle_z(glfw.get_time() as f32) * transform;
-            let model = Matrix::from_angle_x(-55. * PI / 180.);
-            let view = Matrix::from_translation(vector(0., 0., -3.));
-            let projection = perspective(45. * PI / 180., WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32, 0.1, 100.);
-
             shader.use_program();
-            let model_loc = gl::GetUniformLocation(shader.id, c_str!("model").as_ptr());
-            gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, model.as_ptr());
+            gl::BindVertexArray(vao);
 
-            let view_loc = gl::GetUniformLocation(shader.id, c_str!("view").as_ptr());
-            gl::UniformMatrix4fv(view_loc, 1, gl::FALSE, view.as_ptr());
+            // camera transformation
+            shader.set_matrix(c_str!("view"), &cam.look_at());
 
-            let projection_loc = gl::GetUniformLocation(shader.id, c_str!("projection").as_ptr());
-            gl::UniformMatrix4fv(projection_loc, 1, gl::FALSE, projection.as_ptr());
+            // projection transformation
+            shader.set_matrix(
+                c_str!("projection"),
+                &perspective(cam.fov, WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32, 0.1, 100.)
+            );
 
-            gl::BindVertexArray(vaos[0]);
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
+            // model transformations
+            for (i, cube_position) in cube_positions.iter().enumerate() {
+                let model = Matrix::from_translation(*cube_position);
+                let angle = 20. * i as f32;
+                shader.set_matrix(
+                    c_str!("model"),
+                    &(Matrix::from_axis_angle(normalize(vector(1.0, 0.3, 0.5)), angle) * model)
+                );
+                gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            }
+
+            handle_keyboard_input(&mut window, &mut cam);
+
         }
+        handle_window_events(&mut window, &events, &mut cam);
         window.swap_buffers();
         glfw.poll_events();
     }
 
     unsafe {
-        gl::DeleteVertexArrays(2, vaos.as_mut_ptr());
-        gl::DeleteBuffers(2, vbos.as_mut_ptr());
+        gl::DeleteVertexArrays(1, &vao);
+        gl::DeleteBuffers(1, &vbo);
     }
 }
 
-fn handle_window_events(window: &mut glfw::Window, events: &GlfwReceiver<(f64, WindowEvent)>) {
+fn handle_window_events(window: &mut glfw::Window, events: &GlfwReceiver<(f64, WindowEvent)>, cam: &mut Camera) {
     for (_, event) in glfw::flush_messages(events) {
         match event {
             glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
@@ -274,8 +274,34 @@ fn handle_window_events(window: &mut glfw::Window, events: &GlfwReceiver<(f64, W
             },
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                 window.set_should_close(true)
+            },
+            glfw::WindowEvent::CursorPos(xpos, ypos) => {
+                cam.handle_cursor(xpos as f32, ypos as f32);
+            },
+            glfw::WindowEvent::Scroll(_, yoffset) => {
+                cam.handle_scroll(yoffset as f32);
             }
             _ => {}
         }
+    }
+}
+
+fn handle_keyboard_input(window: &mut glfw::Window, cam: &mut Camera) {
+    if window.get_key(Key::Enter) == Action::Press {
+        window.set_cursor_mode(glfw::CursorMode::Normal);
+    }
+
+    cam.update_camera_speed();
+    if window.get_key(Key::W) == Action::Press {
+        cam.handle_w();
+    }
+    if window.get_key(Key::S) == Action::Press {
+        cam.handle_s();
+    }
+    if window.get_key(Key::A) == Action::Press {
+        cam.handle_a();
+    }
+    if window.get_key(Key::D) == Action::Press {
+        cam.handle_d();
     }
 }

@@ -1,6 +1,11 @@
-use std::{ffi::CString, fs::File, io::Read, ptr, str};
-
+use crate::matrices::Matrix;
 use gl::types::{GLchar, GLint};
+use std::{
+    ffi::{CStr, CString},
+    fs::File,
+    io::Read,
+    ptr, str,
+};
 
 pub struct Shader {
     pub id: u32,
@@ -88,7 +93,9 @@ impl Shader {
             shader_program
         };
 
-        Self { id: shader_program_id }
+        Self {
+            id: shader_program_id,
+        }
     }
 
     pub fn use_program(&mut self) {
@@ -97,21 +104,35 @@ impl Shader {
         }
     }
 
-    pub fn set_bool(&mut self, name: &mut str, value: bool) {
-        unsafe {
-            gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value as i32);
-        }
-    }
+    // pub fn set_bool(&mut self, name: &mut str, value: bool) {
+    //     unsafe {
+    //         gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value as i32);
+    //     }
+    // }
 
     pub fn set_int(&mut self, name: &mut str, value: i32) {
         unsafe {
-            gl::Uniform1i(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
+            gl::Uniform1i(
+                gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8),
+                value,
+            );
         }
     }
 
-    pub fn set_float(&mut self, name: &mut str, value: f32) {
+    // pub fn set_float(&mut self, name: &mut str, value: f32) {
+    //     unsafe {
+    //         gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
+    //     }
+    // }
+
+    pub fn set_matrix(&self, name: &CStr, m: &Matrix) {
         unsafe {
-            gl::Uniform1f(gl::GetUniformLocation(self.id, name.as_mut_ptr() as *mut i8), value);
+            gl::UniformMatrix4fv(
+                gl::GetUniformLocation(self.id, name.as_ptr()),
+                1,
+                gl::FALSE,
+                m.as_ptr(),
+            );
         }
     }
 }

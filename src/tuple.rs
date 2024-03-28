@@ -10,23 +10,12 @@ pub struct Tuple {
     pub w: f32,
 }
 
-pub type Point = Tuple;
-pub type RTPoint = Tuple;
+// pub type Point = Tuple;
 pub type Vector = Tuple;
 
 impl Tuple {
     pub fn new() -> Self {
         Tuple { x: 0.0, y: 0.0, z: 0.0, w: 0.0 }
-    }
-
-    pub fn is_vector(&self) -> bool {
-        let result = if self.w == 0.0 {true} else {false};
-        result
-    }
-
-    pub fn is_point(&self) -> bool {
-        let result = if self.w == 1.0 {true} else {false};
-        result
     }
 }
 
@@ -147,9 +136,9 @@ pub fn cross(a: Tuple, b: Tuple) -> Tuple {
 /* ========================================================================= */
 
 /* Factory functions ======================================================= */
-pub fn point(x: f32, y: f32, z: f32) -> Point {
-    Point { x, y, z, w: 1.0 }
-}
+// pub fn point(x: f32, y: f32, z: f32) -> Point {
+//     Point { x, y, z, w: 1.0 }
+// }
 
 pub fn vector(x: f32, y: f32, z: f32) -> Vector {
     Vector { x, y, z, w: 0.0 }
