@@ -9,7 +9,7 @@ mod tuple;
 use c_str_macro::c_str;
 use camera::Camera;
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
-use glfw::{Action, Context, GlfwReceiver, Key, WindowEvent};
+use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use matrices::{perspective, Matrix};
 use shader::Shader;
 use std::mem;
@@ -20,18 +20,13 @@ use tuple::{normalize, vector};
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
 
-fn main() {
-    // Init OpenGL
-    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
-
-    // Window options
+fn create_configured_window(glfw: &mut Glfw) -> (PWindow, GlfwReceiver<(f64, WindowEvent)>) {
     glfw.window_hint(glfw::WindowHint::ContextVersionMajor(3));
     glfw.window_hint(glfw::WindowHint::ContextVersionMinor(3));
     glfw.window_hint(glfw::WindowHint::OpenGlProfile(
         glfw::OpenGlProfileHint::Core,
     ));
 
-    // Create a window
     let (mut window, events) = glfw
         .create_window(
             WINDOW_WIDTH,
@@ -51,6 +46,16 @@ fn main() {
     window.make_current();
 
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
+
+    (window, events)
+}
+
+fn main() {
+    // Init OpenGL
+    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
+
+    // Create a window
+    let (mut window, events) = create_configured_window(&mut glfw);
 
     let vertices: [f32; 180] = [
         -0.5, -0.5, -0.5, 0.0, 0.0, 0.5, -0.5, -0.5, 1.0, 0.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5, 0.5,
