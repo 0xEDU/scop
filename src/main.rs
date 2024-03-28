@@ -1,21 +1,21 @@
 extern crate glfw;
 extern crate image;
 
+mod camera;
+mod matrices;
 mod shader;
 mod tuple;
-mod matrices;
-mod camera;
 
+use c_str_macro::c_str;
 use camera::Camera;
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
 use glfw::{Action, Context, GlfwReceiver, Key, WindowEvent};
 use matrices::{perspective, Matrix};
 use shader::Shader;
-use tuple::{normalize, vector};
-use c_str_macro::c_str;
 use std::mem;
 use std::path::Path;
 use std::{ffi::c_void, ptr};
+use tuple::{normalize, vector};
 
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
@@ -53,47 +53,17 @@ fn main() {
     gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
     let vertices: [f32; 180] = [
-        -0.5, -0.5, -0.5,  0.0, 0.0,
-        0.5, -0.5, -0.5,  1.0, 0.0,
-        0.5,  0.5, -0.5,  1.0, 1.0,
-        0.5,  0.5, -0.5,  1.0, 1.0,
-        -0.5,  0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 0.0,
-
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-        0.5, -0.5,  0.5,  1.0, 0.0,
-        0.5,  0.5,  0.5,  1.0, 1.0,
-        0.5,  0.5,  0.5,  1.0, 1.0,
-        -0.5,  0.5,  0.5,  0.0, 1.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-
-        -0.5,  0.5,  0.5,  1.0, 0.0,
-        -0.5,  0.5, -0.5,  1.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-        -0.5,  0.5,  0.5,  1.0, 0.0,
-
-        0.5,  0.5,  0.5,  1.0, 0.0,
-        0.5,  0.5, -0.5,  1.0, 1.0,
-        0.5, -0.5, -0.5,  0.0, 1.0,
-        0.5, -0.5, -0.5,  0.0, 1.0,
-        0.5, -0.5,  0.5,  0.0, 0.0,
-        0.5,  0.5,  0.5,  1.0, 0.0,
-
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-        0.5, -0.5, -0.5,  1.0, 1.0,
-        0.5, -0.5,  0.5,  1.0, 0.0,
-        0.5, -0.5,  0.5,  1.0, 0.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-
-        -0.5,  0.5, -0.5,  0.0, 1.0,
-        0.5,  0.5, -0.5,  1.0, 1.0,
-        0.5,  0.5,  0.5,  1.0, 0.0,
-        0.5,  0.5,  0.5,  1.0, 0.0,
-        -0.5,  0.5,  0.5,  0.0, 0.0,
-        -0.5,  0.5, -0.5,  0.0, 1.0
+        -0.5, -0.5, -0.5, 0.0, 0.0, 0.5, -0.5, -0.5, 1.0, 0.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5, 0.5,
+        -0.5, 1.0, 1.0, -0.5, 0.5, -0.5, 0.0, 1.0, -0.5, -0.5, -0.5, 0.0, 0.0, -0.5, -0.5, 0.5,
+        0.0, 0.0, 0.5, -0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 1.0, -0.5,
+        0.5, 0.5, 0.0, 1.0, -0.5, -0.5, 0.5, 0.0, 0.0, -0.5, 0.5, 0.5, 1.0, 0.0, -0.5, 0.5, -0.5,
+        1.0, 1.0, -0.5, -0.5, -0.5, 0.0, 1.0, -0.5, -0.5, -0.5, 0.0, 1.0, -0.5, -0.5, 0.5, 0.0,
+        0.0, -0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5,
+        -0.5, -0.5, 0.0, 1.0, 0.5, -0.5, -0.5, 0.0, 1.0, 0.5, -0.5, 0.5, 0.0, 0.0, 0.5, 0.5, 0.5,
+        1.0, 0.0, -0.5, -0.5, -0.5, 0.0, 1.0, 0.5, -0.5, -0.5, 1.0, 1.0, 0.5, -0.5, 0.5, 1.0, 0.0,
+        0.5, -0.5, 0.5, 1.0, 0.0, -0.5, -0.5, 0.5, 0.0, 0.0, -0.5, -0.5, -0.5, 0.0, 1.0, -0.5, 0.5,
+        -0.5, 0.0, 1.0, 0.5, 0.5, -0.5, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0, 0.0,
+        -0.5, 0.5, 0.5, 0.0, 0.0, -0.5, 0.5, -0.5, 0.0, 1.0,
     ];
 
     let cube_positions = [
@@ -108,7 +78,6 @@ fn main() {
         vector(1.5, 0.2, -1.5),
         vector(-1.3, 1.0, -1.5),
     ];
-
 
     // We need to write manually at least 2 shaders: vertex shader and fragment shader
     let mut shader = Shader::new(
@@ -164,7 +133,8 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         // load texture 1
-        let img = image::open(&Path::new("./resources/container.jpg")).expect("Failed to load texture");
+        let img =
+            image::open(&Path::new("./resources/container.jpg")).expect("Failed to load texture");
         let data = img.as_bytes();
         gl::TexImage2D(
             gl::TEXTURE_2D,
@@ -192,7 +162,8 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         // load texture 2
-        let img = image::open(&Path::new("./resources/awesomeface.png")).expect("Failed to load texture");
+        let img =
+            image::open(&Path::new("./resources/awesomeface.png")).expect("Failed to load texture");
         let img = img.flipv();
         let data = img.as_bytes();
         gl::TexImage2D(
@@ -226,7 +197,8 @@ fn main() {
 
             // bind texture on corresponding units
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture1); gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, texture1);
+            gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D, texture2);
 
             shader.use_program();
@@ -238,7 +210,12 @@ fn main() {
             // projection transformation
             shader.set_matrix(
                 c_str!("projection"),
-                &perspective(cam.fov, WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32, 0.1, 100.)
+                &perspective(
+                    cam.fov,
+                    WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32,
+                    0.1,
+                    100.,
+                ),
             );
 
             // model transformations
@@ -247,13 +224,12 @@ fn main() {
                 let angle = 20. * i as f32;
                 shader.set_matrix(
                     c_str!("model"),
-                    &(Matrix::from_axis_angle(normalize(vector(1.0, 0.3, 0.5)), angle) * model)
+                    &(Matrix::from_axis_angle(normalize(vector(1.0, 0.3, 0.5)), angle) * model),
                 );
                 gl::DrawArrays(gl::TRIANGLES, 0, 36);
             }
 
             handle_keyboard_input(&mut window, &mut cam);
-
         }
         handle_window_events(&mut window, &events, &mut cam);
         window.swap_buffers();
@@ -266,7 +242,11 @@ fn main() {
     }
 }
 
-fn handle_window_events(window: &mut glfw::Window, events: &GlfwReceiver<(f64, WindowEvent)>, cam: &mut Camera) {
+fn handle_window_events(
+    window: &mut glfw::Window,
+    events: &GlfwReceiver<(f64, WindowEvent)>,
+    cam: &mut Camera,
+) {
     for (_, event) in glfw::flush_messages(events) {
         match event {
             glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
@@ -274,10 +254,10 @@ fn handle_window_events(window: &mut glfw::Window, events: &GlfwReceiver<(f64, W
             },
             glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                 window.set_should_close(true)
-            },
+            }
             glfw::WindowEvent::CursorPos(xpos, ypos) => {
                 cam.handle_cursor(xpos as f32, ypos as f32);
-            },
+            }
             glfw::WindowEvent::Scroll(_, yoffset) => {
                 cam.handle_scroll(yoffset as f32);
             }
