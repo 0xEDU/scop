@@ -179,9 +179,6 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
 
-        // Draw wireframe polygons
-        // gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE);
-
         shader.use_program();
         shader.set_int(&mut String::from("texture1"), 0);
         shader.set_int(&mut String::from("texture2"), 1);
@@ -283,5 +280,9 @@ fn handle_keyboard_input(window: &mut glfw::Window, cam: &mut Camera) {
     }
     if window.get_key(Key::D) == Action::Press {
         cam.handle_d();
+    }
+    if window.get_key(Key::P) == Action::Press {
+        // Draw wireframe polygons
+        unsafe { gl::PolygonMode(gl::FRONT_AND_BACK, gl::LINE) };
     }
 }
