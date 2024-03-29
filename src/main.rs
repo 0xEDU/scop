@@ -3,24 +3,23 @@ extern crate image;
 
 mod camera;
 mod matrices;
+mod parser;
+mod scene;
 mod shader;
 mod tuple;
 
 use c_str_macro::c_str;
 use camera::Camera;
-use cgmath::num_traits::float::FloatCore;
-use cgmath::num_traits::real::Real;
-use cgmath::num_traits::Float;
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
-use gl::GenTextures;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use matrices::{perspective, Matrix};
+use parser::Parser;
+use scene::Scene;
 use shader::Shader;
-use std::ffi::{CStr, CString};
 use std::mem;
 use std::path::Path;
 use std::{ffi::c_void, ptr};
-use tuple::{normalize, vector, Tuple};
+use tuple::{normalize, vector};
 
 const WINDOW_WIDTH: u32 = 1920;
 const WINDOW_HEIGHT: u32 = 1080;
@@ -62,67 +61,43 @@ fn main() {
     // Create a window
     let (mut window, events) = create_configured_window(&mut glfw);
     let vertices: [f32; 288] = [
-    // positions          // normals           // texture coords
-    -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 0.0,
-     0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 0.0,
-     0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 1.0,
-     0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  1.0, 1.0,
-    -0.5,  0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 1.0,
-    -0.5, -0.5, -0.5,  0.0,  0.0, -1.0,  0.0, 0.0,
-
-    -0.5, -0.5,  0.5,  0.0,  0.0, 1.0,   0.0, 0.0,
-     0.5, -0.5,  0.5,  0.0,  0.0, 1.0,   1.0, 0.0,
-     0.5,  0.5,  0.5,  0.0,  0.0, 1.0,   1.0, 1.0,
-     0.5,  0.5,  0.5,  0.0,  0.0, 1.0,   1.0, 1.0,
-    -0.5,  0.5,  0.5,  0.0,  0.0, 1.0,   0.0, 1.0,
-    -0.5, -0.5,  0.5,  0.0,  0.0, 1.0,   0.0, 0.0,
-
-    -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,  1.0, 0.0,
-    -0.5,  0.5, -0.5, -1.0,  0.0,  0.0,  1.0, 1.0,
-    -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,  0.0, 1.0,
-    -0.5, -0.5, -0.5, -1.0,  0.0,  0.0,  0.0, 1.0,
-    -0.5, -0.5,  0.5, -1.0,  0.0,  0.0,  0.0, 0.0,
-    -0.5,  0.5,  0.5, -1.0,  0.0,  0.0,  1.0, 0.0,
-
-     0.5,  0.5,  0.5,  1.0,  0.0,  0.0,  1.0, 0.0,
-     0.5,  0.5, -0.5,  1.0,  0.0,  0.0,  1.0, 1.0,
-     0.5, -0.5, -0.5,  1.0,  0.0,  0.0,  0.0, 1.0,
-     0.5, -0.5, -0.5,  1.0,  0.0,  0.0,  0.0, 1.0,
-     0.5, -0.5,  0.5,  1.0,  0.0,  0.0,  0.0, 0.0,
-     0.5,  0.5,  0.5,  1.0,  0.0,  0.0,  1.0, 0.0,
-
-    -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  0.0, 1.0,
-     0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  1.0, 1.0,
-     0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  1.0, 0.0,
-     0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  1.0, 0.0,
-    -0.5, -0.5,  0.5,  0.0, -1.0,  0.0,  0.0, 0.0,
-    -0.5, -0.5, -0.5,  0.0, -1.0,  0.0,  0.0, 1.0,
-
-    -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  0.0, 1.0,
-     0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  1.0, 1.0,
-     0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  1.0, 0.0,
-     0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  1.0, 0.0,
-    -0.5,  0.5,  0.5,  0.0,  1.0,  0.0,  0.0, 0.0,
-    -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  0.0, 1.0
+        // positions          // normals           // texture coords
+        -0.5, -0.5, -0.5, 0.0, 0.0, -1.0, 0.0, 0.0, 0.5, -0.5, -0.5, 0.0, 0.0, -1.0, 1.0, 0.0, 0.5,
+        0.5, -0.5, 0.0, 0.0, -1.0, 1.0, 1.0, 0.5, 0.5, -0.5, 0.0, 0.0, -1.0, 1.0, 1.0, -0.5, 0.5,
+        -0.5, 0.0, 0.0, -1.0, 0.0, 1.0, -0.5, -0.5, -0.5, 0.0, 0.0, -1.0, 0.0, 0.0, -0.5, -0.5,
+        0.5, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, -0.5, 0.5, 0.0, 0.0, 1.0, 1.0, 0.0, 0.5, 0.5, 0.5, 0.0,
+        0.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 0.0, 0.0, 1.0, 1.0, 1.0, -0.5, 0.5, 0.5, 0.0, 0.0, 1.0,
+        0.0, 1.0, -0.5, -0.5, 0.5, 0.0, 0.0, 1.0, 0.0, 0.0, -0.5, 0.5, 0.5, -1.0, 0.0, 0.0, 1.0,
+        0.0, -0.5, 0.5, -0.5, -1.0, 0.0, 0.0, 1.0, 1.0, -0.5, -0.5, -0.5, -1.0, 0.0, 0.0, 0.0, 1.0,
+        -0.5, -0.5, -0.5, -1.0, 0.0, 0.0, 0.0, 1.0, -0.5, -0.5, 0.5, -1.0, 0.0, 0.0, 0.0, 0.0,
+        -0.5, 0.5, 0.5, -1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5,
+        -0.5, 1.0, 0.0, 0.0, 1.0, 1.0, 0.5, -0.5, -0.5, 1.0, 0.0, 0.0, 0.0, 1.0, 0.5, -0.5, -0.5,
+        1.0, 0.0, 0.0, 0.0, 1.0, 0.5, -0.5, 0.5, 1.0, 0.0, 0.0, 0.0, 0.0, 0.5, 0.5, 0.5, 1.0, 0.0,
+        0.0, 1.0, 0.0, -0.5, -0.5, -0.5, 0.0, -1.0, 0.0, 0.0, 1.0, 0.5, -0.5, -0.5, 0.0, -1.0, 0.0,
+        1.0, 1.0, 0.5, -0.5, 0.5, 0.0, -1.0, 0.0, 1.0, 0.0, 0.5, -0.5, 0.5, 0.0, -1.0, 0.0, 1.0,
+        0.0, -0.5, -0.5, 0.5, 0.0, -1.0, 0.0, 0.0, 0.0, -0.5, -0.5, -0.5, 0.0, -1.0, 0.0, 0.0, 1.0,
+        -0.5, 0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0, 0.5, 0.5, -0.5, 0.0, 1.0, 0.0, 1.0, 1.0, 0.5,
+        0.5, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.5, 0.0, 1.0, 0.0, 1.0, 0.0, -0.5, 0.5, 0.5,
+        0.0, 1.0, 0.0, 0.0, 0.0, -0.5, 0.5, -0.5, 0.0, 1.0, 0.0, 0.0, 1.0,
     ];
 
     let cube_positions = [
-        vector( 0.0,  0.0,  0.0),
-        vector( 2.0,  5.0, -15.0),
+        vector(0.0, 0.0, 0.0),
+        vector(2.0, 5.0, -15.0),
         vector(-1.5, -2.2, -2.5),
         vector(-3.8, -2.0, -12.3),
-        vector( 2.4, -0.4, -3.5),
-        vector(-1.7,  3.0, -7.5),
-        vector( 1.3, -2.0, -2.5),
-        vector( 1.5,  2.0, -2.5),
-        vector( 1.5,  0.2, -1.5),
-        vector(-1.3,  1.0, -1.5),
+        vector(2.4, -0.4, -3.5),
+        vector(-1.7, 3.0, -7.5),
+        vector(1.3, -2.0, -2.5),
+        vector(1.5, 2.0, -2.5),
+        vector(1.5, 0.2, -1.5),
+        vector(-1.3, 1.0, -1.5),
     ];
     let point_light_positions = [
-        vector( 0.7,  0.2,  2.0),
-        vector( 2.3, -3.3, -4.0),
-        vector(-4.0,  2.0, -12.0),
-        vector( 0.0,  0.0, -3.0)
+        vector(0.7, 0.2, 2.0),
+        vector(2.3, -3.3, -4.0),
+        vector(-4.0, 2.0, -12.0),
+        vector(0.0, 0.0, -3.0),
     ];
 
     // We need to write manually at least 2 shaders: vertex shader and fragment shader
@@ -135,6 +110,14 @@ fn main() {
         "./src/shaders/light_fragment.shader",
     );
     let mut cam = Camera::new(WINDOW_WIDTH, WINDOW_HEIGHT);
+    let parser = Parser::new("./resources/42.obj").unwrap();
+    let scene: Scene = parser.generate_scene().unwrap();
+    for i in 0..scene.vertices.len() {
+        println!(
+            "Vertex -> x: {}, y: {}, z: {}, w: {}",
+            scene.vertices[i].x, scene.vertices[i].y, scene.vertices[i].z, scene.vertices[i].w
+        );
+    }
     let (vbo, vao, light_vao, diffuse_map, specular_map) = unsafe {
         gl::Enable(gl::DEPTH_TEST);
 
@@ -158,10 +141,24 @@ fn main() {
         gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, stride, ptr::null());
         gl::EnableVertexAttribArray(0);
         // normal attrib
-        gl::VertexAttribPointer(1, 3, gl::FLOAT, gl::FALSE, stride, (3 * mem::size_of::<GLfloat>()) as *const c_void);
+        gl::VertexAttribPointer(
+            1,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            stride,
+            (3 * mem::size_of::<GLfloat>()) as *const c_void,
+        );
         gl::EnableVertexAttribArray(1);
         // texture coord attrib
-        gl::VertexAttribPointer(2, 2, gl::FLOAT, gl::FALSE, stride, (6 * mem::size_of::<GLfloat>()) as *const c_void);
+        gl::VertexAttribPointer(
+            2,
+            2,
+            gl::FLOAT,
+            gl::FALSE,
+            stride,
+            (6 * mem::size_of::<GLfloat>()) as *const c_void,
+        );
         gl::EnableVertexAttribArray(2);
 
         // Load light data
@@ -218,8 +215,8 @@ fn main() {
         gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
 
         // load diffuse_map texture
-        let img =
-            image::open(&Path::new("./resources/container2_specular.png")).expect("Failed to load texture");
+        let img = image::open(&Path::new("./resources/container2_specular.png"))
+            .expect("Failed to load texture");
         let data = img.as_bytes();
         gl::TexImage2D(
             gl::TEXTURE_2D,
