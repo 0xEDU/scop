@@ -8,6 +8,7 @@ mod tuple;
 
 use c_str_macro::c_str;
 use camera::Camera;
+use cgmath::num_traits::float::FloatCore;
 use cgmath::num_traits::real::Real;
 use cgmath::num_traits::Float;
 use gl::types::{GLfloat, GLsizei, GLsizeiptr};
@@ -15,6 +16,7 @@ use gl::GenTextures;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use matrices::{perspective, Matrix};
 use shader::Shader;
+use std::ffi::{CStr, CString};
 use std::mem;
 use std::path::Path;
 use std::{ffi::c_void, ptr};
@@ -104,8 +106,24 @@ fn main() {
     -0.5,  0.5, -0.5,  0.0,  1.0,  0.0,  0.0, 1.0
     ];
 
-    let cube_positions = [vector(0.0, 0.0, 0.0)];
-    let mut light_pos = vector(1.2, 1.0, 2.0);
+    let cube_positions = [
+        vector( 0.0,  0.0,  0.0),
+        vector( 2.0,  5.0, -15.0),
+        vector(-1.5, -2.2, -2.5),
+        vector(-3.8, -2.0, -12.3),
+        vector( 2.4, -0.4, -3.5),
+        vector(-1.7,  3.0, -7.5),
+        vector( 1.3, -2.0, -2.5),
+        vector( 1.5,  2.0, -2.5),
+        vector( 1.5,  0.2, -1.5),
+        vector(-1.3,  1.0, -1.5),
+    ];
+    let point_light_positions = [
+        vector( 0.7,  0.2,  2.0),
+        vector( 2.3, -3.3, -4.0),
+        vector(-4.0,  2.0, -12.0),
+        vector( 0.0,  0.0, -3.0)
+    ];
 
     // We need to write manually at least 2 shaders: vertex shader and fragment shader
     let mut shader = Shader::new(
@@ -216,6 +234,10 @@ fn main() {
         );
         gl::GenerateMipmap(gl::TEXTURE_2D);
 
+        shader.use_program();
+        shader.set_int(c_str!("material.diffuse"), 0);
+        shader.set_int(c_str!("material.specular"), 1);
+
         (vbo, vao, light_vao, diffuse_map, specular_map)
     };
 
@@ -227,27 +249,47 @@ fn main() {
 
             // object shader
             shader.use_program();
-            shader.set_vector(c_str!("lightColor"), 1.0, 1.0, 1.0);
-            shader.set_tuple(c_str!("lightPos"), light_pos);
             shader.set_tuple(c_str!("viewPos"), cam.camera_position);
-            shader.set_vector(c_str!("material.ambient"), 1., 0.5, 0.31);
-            shader.set_int(c_str!("material.diffuse"), 0);
-            shader.set_int(c_str!("material.specular"), 1);
             shader.set_float(c_str!("material.shininess"), 32.);
 
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, diffuse_map);
+            // directional light
+            shader.set_vector(c_str!("dirLight.direction"), -0.2, -1.0, -0.3);
+            shader.set_vector(c_str!("dirLight.ambient"), 0.05, 0.05, 0.05);
+            shader.set_vector(c_str!("dirLight.diffuse"), 0.4, 0.4, 0.4);
+            shader.set_vector(c_str!("dirLight.specular"), 0.5, 0.5, 0.5);
 
-            gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D, specular_map);
-
-            let light_color = vector(1., 1., 1.);
-            let diffuse_color = light_color * 0.5;
-            let ambient_color = diffuse_color * 0.2;
-            shader.set_tuple(c_str!("light.diffuse"), diffuse_color);
-            shader.set_tuple(c_str!("light.ambient"), ambient_color);
-
-            shader.set_vector(c_str!("light.specular"), 1., 1., 1.);
+            // point light 1
+            shader.set_tuple(c_str!("pointLights[0].position"), point_light_positions[0]);
+            shader.set_vector(c_str!("pointLights[0].ambient"), 0.05, 0.05, 0.05);
+            shader.set_vector(c_str!("pointLights[0].diffuse"), 0.8, 0.8, 0.8);
+            shader.set_vector(c_str!("pointLights[0].specular"), 1.0, 1.0, 1.0);
+            shader.set_float(c_str!("pointLights[0].constant"), 1.0);
+            shader.set_float(c_str!("pointLights[0].linear"), 0.09);
+            shader.set_float(c_str!("pointLights[0].quadratic"), 0.032);
+            // point light 2
+            shader.set_tuple(c_str!("pointLights[1].position"), point_light_positions[1]);
+            shader.set_vector(c_str!("pointLights[1].ambient"), 0.05, 0.05, 0.05);
+            shader.set_vector(c_str!("pointLights[1].diffuse"), 0.8, 0.8, 0.8);
+            shader.set_vector(c_str!("pointLights[1].specular"), 1.0, 1.0, 1.0);
+            shader.set_float(c_str!("pointLights[1].constant"), 1.0);
+            shader.set_float(c_str!("pointLights[1].linear"), 0.09);
+            shader.set_float(c_str!("pointLights[1].quadratic"), 0.032);
+            // point light 3
+            shader.set_tuple(c_str!("pointLights[2].position"), point_light_positions[2]);
+            shader.set_vector(c_str!("pointLights[2].ambient"), 0.05, 0.05, 0.05);
+            shader.set_vector(c_str!("pointLights[2].diffuse"), 0.8, 0.8, 0.8);
+            shader.set_vector(c_str!("pointLights[2].specular"), 1.0, 1.0, 1.0);
+            shader.set_float(c_str!("pointLights[2].constant"), 1.0);
+            shader.set_float(c_str!("pointLights[2].linear"), 0.09);
+            shader.set_float(c_str!("pointLights[2].quadratic"), 0.032);
+            // point light 4
+            shader.set_tuple(c_str!("pointLights[3].position"), point_light_positions[3]);
+            shader.set_vector(c_str!("pointLights[3].ambient"), 0.05, 0.05, 0.05);
+            shader.set_vector(c_str!("pointLights[3].diffuse"), 0.8, 0.8, 0.8);
+            shader.set_vector(c_str!("pointLights[3].specular"), 1.0, 1.0, 1.0);
+            shader.set_float(c_str!("pointLights[3].constant"), 1.0);
+            shader.set_float(c_str!("pointLights[3].linear"), 0.09);
+            shader.set_float(c_str!("pointLights[3].quadratic"), 0.032);
 
             // camera transformation
             shader.set_matrix(c_str!("view"), &cam.look_at());
@@ -263,15 +305,23 @@ fn main() {
                 ),
             );
 
-            // model transformations
-            let model = Matrix::from_translation(cube_positions[0]);
-            shader.set_matrix(
-                c_str!("model"),
-                &(Matrix::from_axis_angle(normalize(vector(1.0, 0.3, 0.5)), 0.) * model),
-            );
-            gl::BindVertexArray(vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D, diffuse_map);
 
+            gl::ActiveTexture(gl::TEXTURE1);
+            gl::BindTexture(gl::TEXTURE_2D, specular_map);
+
+            // model transformations
+            gl::BindVertexArray(vao);
+            for (i, cube_position) in cube_positions.iter().enumerate() {
+                let model = Matrix::from_translation(*cube_position);
+                let angle: f32 = 20. * i as f32;
+                shader.set_matrix(
+                    c_str!("model"),
+                    &(Matrix::from_axis_angle(normalize(vector(1.0, 0.3, 0.5)), angle) * model),
+                );
+                gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            }
             // light shader
             light_shader.use_program();
 
@@ -290,13 +340,15 @@ fn main() {
             );
 
             // light model
-            let model = Matrix::from_translation(light_pos);
-            let model = Matrix::from_scale(0.2) * model;
-            light_shader.set_matrix(c_str!("model"), &model);
             gl::BindVertexArray(light_vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            for (_, point_light) in point_light_positions.iter().enumerate() {
+                let model = Matrix::from_translation(*point_light);
+                let model = Matrix::from_scale(0.2) * model;
+                light_shader.set_matrix(c_str!("model"), &model);
+                gl::DrawArrays(gl::TRIANGLES, 0, 36);
+            }
 
-            handle_keyboard_input(&mut window, &mut cam, &mut light_pos);
+            handle_keyboard_input(&mut window, &mut cam);
         }
         handle_window_events(&mut window, &events, &mut cam);
         window.swap_buffers();
@@ -333,24 +385,12 @@ fn handle_window_events(
     }
 }
 
-fn handle_keyboard_input(window: &mut glfw::Window, cam: &mut Camera, light_pos: &mut Tuple) {
+fn handle_keyboard_input(window: &mut glfw::Window, cam: &mut Camera) {
     if window.get_key(Key::Enter) == Action::Press {
         window.set_cursor_mode(glfw::CursorMode::Normal);
     }
 
     cam.update_camera_speed();
-    if window.get_key(Key::Up) == Action::Press {
-        light_pos.y += cam.camera_speed;
-    }
-    if window.get_key(Key::Down) == Action::Press {
-        light_pos.y -= cam.camera_speed;
-    }
-    if window.get_key(Key::Left) == Action::Press {
-        light_pos.x += cam.camera_speed;
-    }
-    if window.get_key(Key::Right) == Action::Press {
-        light_pos.x -= cam.camera_speed;
-    }
     if window.get_key(Key::W) == Action::Press {
         cam.handle_w();
     }

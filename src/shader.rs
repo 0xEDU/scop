@@ -61,10 +61,10 @@ impl Shader {
                     ptr::null_mut(),
                     info_log.as_mut_ptr() as *mut GLchar,
                 );
-                println!(
-                    "ERROR COMPILATION FAILED!\n{}",
-                    str::from_utf8(&info_log).unwrap()
-                );
+                for i in 0..info_log.len() {
+                    print!("{}", info_log[i] as char);
+                }
+                println!();
             }
 
             // Link shaders

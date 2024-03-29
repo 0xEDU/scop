@@ -4,7 +4,7 @@ use crate::{matrices::Matrix, tuple::vector};
 pub struct Camera {
     pub fov: f32,
     pub camera_position: Tuple,
-    camera_front: Tuple,
+    pub camera_front: Tuple,
     camera_up: Tuple,
     sensivity: f32,
     pub camera_speed: f32,
@@ -67,6 +67,9 @@ impl Camera {
             self.pitch.to_radians().sin(),
             self.yaw.to_radians().sin() * self.pitch.to_radians().cos(),
         );
+        self.camera_front = normalize(self.camera_front);
+        let camera_right = normalize(cross(self.camera_front, vector(0., 1., 0.)));
+        self.camera_up = normalize(cross(camera_right, self.camera_front));
     }
 
     pub fn handle_scroll(&mut self, yoffset: f32) {
